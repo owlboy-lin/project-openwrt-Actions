@@ -36,6 +36,7 @@ env:
   TARGET: x86
   SUBTARGET: 64
   SSH_ACTIONS: false
+  Gzip_file : false
   UPLOAD_BIN_DIR: false
   UPLOAD_ZIP: false
   UPLOAD_FIRMWARE: true
@@ -145,7 +146,7 @@ jobs:
     
       - name: Gz Files
         id: Gzip_file
-        if: steps.rename.outputs.status == 'success'
+        if: steps.rename.outputs.status == 'success' && env.Gzip_file == 'true'
         run: |
           cd openwrt/bin/targets/$TARGET/$SUBTARGET
           find . -name "*.img"|xargs -I {} tar zcvf {}.gz {}
