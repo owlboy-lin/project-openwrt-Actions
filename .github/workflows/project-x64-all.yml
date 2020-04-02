@@ -5,7 +5,7 @@
 # Author: P3TERX
 # Blog: https://p3terx.com
 #=================================================
-name: project-x64-simple
+name: project-x64-all
 
 
 on:
@@ -20,8 +20,8 @@ on:
     branches: 
       - master
     paths:
- #     - '.github/workflows/project-x64-simple.yml'
-      - 'project-x64-simple'
+ #     - '.github/workflows/project-x64-all.yml'
+      - 'project-x64-all'
 
   watch:
     types: [started]
@@ -30,8 +30,8 @@ on:
 env:
   REPO_URL: https://github.com/project-openwrt/openwrt
   REPO_BRANCH: master
-  FIRMWARE_NAME: project-x64-simple
-  CONFIG_FILE: project-x64-simple
+  FIRMWARE_NAME: project-x64-all
+  CONFIG_FILE: project-x64-all
   DIY_SH: diy.sh
   TARGET: x86
   SUBTARGET: 64
