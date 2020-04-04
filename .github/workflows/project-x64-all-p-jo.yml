@@ -37,10 +37,11 @@ env:
   TARGET: x86
   SUBTARGET: 64
   SSH_ACTIONS: false
+  Gzip_file: true
   UPLOAD_BIN_DIR: false
-  UPLOAD_ZIP: false
+  UPLOAD_ZIP: true
   UPLOAD_FIRMWARE: true
-  UPLOAD_RELEASE: false
+  UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
 
   
@@ -126,7 +127,7 @@ jobs:
         if: steps.compile.outputs.status == 'success'
         run: |
           cd openwrt/bin/targets/$TARGET/$SUBTARGET
-          gzip -qd *.img.gz
+          gzip -qd *.img.gz  || true
           rm -f *.img.gz
           echo "::set-output name=status::success" 
           
@@ -135,7 +136,7 @@ jobs:
         if: steps.extract.outputs.status == 'success'
         run: |
           cd openwrt/bin/targets/$TARGET/$SUBTARGET
-          release_tag="${FIRMWARE_NAME}-$(date -d "+8 hours" +%Y.%m.%d-%H%M%S)"
+          release_tag="${FIRMWARE_NAME}-$(TZ=UTC-8 date +%Y.%m.%d-%H%M%S)"
           for i in openwrt*; do mv -f $i `echo $i | sed "s/^openwrt-${{ env.TARGET }}-${{ env.SUBTARGET }}/${release_tag}/"`; done
           echo "::set-output name=status::success"
           echo "##[set-output name=release_tag;]$release_tag"
@@ -146,15 +147,14 @@ jobs:
     
       - name: Gz Files
         id: Gzip_file
-        if: steps.rename.outputs.status == 'success'
+        if: steps.rename.outputs.status == 'success' && env.Gzip_file == 'true' 
         run: |
           cd openwrt/bin/targets/$TARGET/$SUBTARGET
-          find . -name "*.img"|xargs -I {} tar zcvf {}.gz {}
-          rm -f *.img
+          gzip *.img
+          # rm -f *.img
           echo "::set-output name=status::success"
   
       - name: Generate Sha256sum File For Images
-        if: steps.Gzip_file.outputs.status == 'success'
         run: |
           cd openwrt/bin/targets/$TARGET/$SUBTARGET
           mv sha256sums sha256sums.orig
@@ -173,7 +173,7 @@ jobs:
           
       - name: Organize files
         id: organize
-        if: env.UPLOAD_FIRMWARE == 'true'
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true'
         run: |
           cd openwrt/bin/targets/*/*
           rm -rf packages
@@ -182,16 +182,18 @@ jobs:
      
       - name: Upload zip
         id: upload_zip
-        if: steps.organize.outputs.status == 'success' && env.UPLOAD_ZIP == 'true'
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_ZIP == 'true'
         run: |
+          rm -rf ./release/
+          mkdir -p ./release/
           cd openwrt/bin/targets/$TARGET/$SUBTARGET
-          zip -rm -T ${{ env.FIRMWARE }}/${{ steps.rename.outputs.release_tag }}.zip *
+          zip -r -j ./release/${{ env.FIRMWARE }}/${{ steps.rename.outputs.release_tag }}.zip *
           echo "::set-output name=status::success"   
      
       - name: Upload firmware directory
         id: upload_firmware
         uses: actions/upload-artifact@master
-        if: steps.organize.outputs.status == 'success' && env.UPLOAD_ZIP == 'false' && !cancelled()
+        if: steps.compile.outputs.status == 'success'
         with:
           name: ${{ steps.rename.outputs.release_tag }}
           # path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/
@@ -199,13 +201,12 @@ jobs:
 
 
       - name: Generate tag
-        if: env.UPLOAD_RELEASE == 'true'
         run: |
           echo ::set-env name=date_TAG::"$(TZ=UTC-8 date +"%Y.%m.%d-%H%M%S")"
 
       - name: Create release
         uses: softprops/action-gh-release@v1
-        if: env.UPLOAD_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/')
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.all_TOKEN }}
         with:
@@ -216,8 +217,8 @@ jobs:
 
       - name: Upload firmware to release
         uses: softprops/action-gh-release@v1
-        if: env.UPLOAD_RELEASE == 'true' && !cancelled() 
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' 
         env:
           GITHUB_TOKEN: ${{ secrets.all_TOKEN }}
         with:
-          files: ${{ env.FIRMWARE }}/*
+          files: ./release/*
