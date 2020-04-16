@@ -10,8 +10,8 @@ name: project-x64-all-jo
 
 on:
 
-  schedule:
-    - cron: 0 20 * * *
+#  schedule:
+#    - cron: 0 20 * * *
 
 #  release:
 #    types: published
@@ -19,9 +19,9 @@ on:
   push:
     branches: 
       - master
-    paths:
+ #   paths:
  #     - '.github/workflows/project-x64-all-jo.yml'
-      - 'project-x64-all-jo'
+ #     - 'project-x64-all-jo'
 
   watch:
     types: [started]

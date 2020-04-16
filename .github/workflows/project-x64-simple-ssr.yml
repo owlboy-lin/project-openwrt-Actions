@@ -11,8 +11,8 @@ name: project-x64-simple-ssr
 
 on:
 
-  schedule:
-    - cron: 0 20 * * *
+#  schedule:
+#    - cron: 0 20 * * *
 
 #  release:
 #    types: published
@@ -20,9 +20,9 @@ on:
   push:
     branches: 
       - master
-    paths:
- #     - '.github/workflows/project-x64-simple-ssr.yml'
-      - 'project-x64-simple-ssr'
+#    paths:
+#      - '.github/workflows/project-x64-simple-ssr.yml'
+#      - 'project-x64-simple-ssr'
 
   watch:
     types: [started]

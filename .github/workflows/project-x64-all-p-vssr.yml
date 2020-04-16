@@ -11,8 +11,8 @@ name: project-x64-all-p-vssr
 
 on:
 
-  schedule:
-    - cron: 0 20 * * *
+#  schedule:
+#    - cron: 0 20 * * *
 
 #  release:
 #    types: published
@@ -20,9 +20,9 @@ on:
   push:
     branches: 
       - master
-    paths:
+ #   paths:
  #     - '.github/workflows/project-x64-all-p-vssr.yml'
-      - 'project-x64-all-p-vssr'
+ #     - 'project-x64-all-p-vssr'
 
   watch:
     types: [started]

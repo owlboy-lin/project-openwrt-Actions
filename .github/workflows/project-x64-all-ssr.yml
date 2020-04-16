@@ -10,8 +10,8 @@ name: project-x64-all-ssr
 
 on:
 
-  schedule:
-    - cron: 0 20 * * *
+#  schedule:
+#    - cron: 0 20 * * *
 
 #  release:
 #    types: published
@@ -19,9 +19,9 @@ on:
   push:
     branches: 
       - master
-    paths:
- #     - '.github/workflows/project-x64-all-ssr.yml'
-      - 'project-x64-all-ssr'
+#    paths:
+#      - '.github/workflows/project-x64-all-ssr.yml'
+#      - 'project-x64-all-ssr'
 
   watch:
     types: [started]
