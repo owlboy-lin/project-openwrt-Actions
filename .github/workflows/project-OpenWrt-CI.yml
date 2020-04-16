@@ -30,11 +30,13 @@ env:
   FIRMWARE_NAME: project-openwrt
   TARGET: x86
   SUBTARGET: 64
-  CONFIG_FILE: 
+  CONFIG_FILE: project-x64-simple
   DIY_SH: diy.sh
-  SSH_ACTIONS: false
-  Gzip_file: true
   UPLOAD_ALL: false
+  SSH_ACTIONS: false
+  extract:  false
+  rename: true
+  Gzip_file: false
   UPLOAD_ZIP: true
   UPLOAD_FIRMWARE: false
   UPLOAD_RELEASE: true
@@ -52,7 +54,6 @@ jobs:
         uses: actions/checkout@master
         with:
           ref: master
-          fetch-depth: 1000000
           
       - name: Set Date
         run: |
@@ -104,61 +105,105 @@ jobs:
           cd openwrt
           make defconfig
 
-      - name: Make download
+      - name: Download package
+        id: package
         run: |
           cd openwrt
+          make defconfig
           make download -j8
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
-
-      - name: Compile firmware
+          
+      - name: Compile the firmware
+        id: compile
         run: |
           cd openwrt
+          echo -e "$(nproc) thread compile"
           make -j$(nproc) || make -j1 V=s
-          echo "======================="
-          echo "Space usage:"
-          echo "======================="
-          df -h
-          echo "======================="
-          du -h --max-depth=1 ./ --exclude=build_dir --exclude=bin
-          du -h --max-depth=1 ./build_dir
-          du -h --max-depth=1 ./bin
-
-      - name: Prepare artifact
+          cd bin/targets/*/*
+          echo "::set-env name=FIRMWARE::$PWD"
+          echo "::set-output name=status::success"
+          
+      - name: UPLOAD_ALL
+        id: UPLOAD_ALL
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_ALL == 'false' && !cancelled()
         run: |
           cd openwrt
           find ./bin/targets/ -type d -name "packages" | xargs rm -rf {}
+          echo "::set-output name=status::success"
+      
+      - name: Extract Gz Files
+        id: extract
+        if: steps.compile.outputs.status == 'success' && env.extract == 'true'
+        run: |
+          cd openwrt/bin/targets/*/*
+          gzip -qd *.img.gz  || true
+          rm -f *.img.gz
+          echo "::set-output name=status::success" 
           
       - name: Rename file
         id: rename
+        if: env.rename == 'true' && steps.compile.outputs.status == 'success' 
+        run: |
+          cd openwrt/bin/targets/*/*
+          for i in openwrt*; do mv -f $i `echo $i | sed "s/^openwrt-$TARGET-$SUBTARGET/${NEW_NAME}/"`; done || true
+          echo "::set-output name=status::success"
+      
+#      - name: SSH connection to Actions
+#        uses: owlboy-lin/debugger-action@master
+#        if: env.SSH_ACTIONS == 'true'      
+    
+      - name: Gz Files
+        id: Gzip_file
+        if: steps.compile.outputs.status == 'success' && env.Gzip_file == 'true' 
         run: |
           cd openwrt/bin/targets/$TARGET/$SUBTARGET
-          for i in openwrt*; do mv -f $i `echo $i | sed "s/^openwrt-$TARGET-$SUBTARGET/${NEW_NAME}/"`; done
-          echo "::set-env name=FIRMWARE::$PWD"
+          gzip *.img || true
+          # rm -f *.img
           echo "::set-output name=status::success"
-
-
-      - name: Upload artifact
+  
+      - name: Generate Sha256sum File For Images
+        run: |
+          cd openwrt/bin/targets/$TARGET/$SUBTARGET
+          mv sha256sums sha256sums.orig
+          sha256sum *.* > sha256sums
+         
+          
+      - name: Upload firmware directory
+        id: upload_firmware
         uses: actions/upload-artifact@master
+        if: steps.compile.outputs.status == 'success'
         with:
           name: ${{ env.NEW_NAME }}
-          path: ${{ env.FIRMWARE }}/
-          
+          path: ${{ env.FIRMWARE }}
+
       - name: Upload zip
         id: upload_zip
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_ALL == 'true' 
         run: |
           cd openwrt
           rm -rf ./release/
           mkdir -p ./release/
-          zip -r -j release/${{ env.RELEASE_NAME }}.zip bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/* || true
+          zip -r -j release/${{ env.NEW_NAME }}.zip bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/* || true           
+          cd release
+          echo "::set-env name=RELEASE::$PWD"
+          echo "::set-output name=status::success"   
+
+      - name: Upload zip
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_ALL == 'false'
+        run: |
+          cd openwrt
+          rm -rf ./release/
+          mkdir -p ./release/
+          zip -r release/${{ env.NEW_NAME }}.zip bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/* || true           
           cd release
           echo "::set-env name=RELEASE::$PWD"
           echo "::set-output name=status::success" 
           
       - name: SSH connection to Actions
         uses: owlboy-lin/debugger-action@master
-        if: env.SSH_ACTIONS == 'true'              
-          
+        if: env.SSH_ACTIONS == 'true'      
+        
       - name: Upload firmware to release
         uses: softprops/action-gh-release@v1
         env:
