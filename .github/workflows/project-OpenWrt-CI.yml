@@ -27,7 +27,7 @@ on:
 env:
   REPO_URL: https://github.com/project-openwrt/openwrt
   REPO_BRANCH: master
-  FIRMWARE_NAME: project-openwrt
+  FIRMWARE_NAME: project-openwrt-x64
   TARGET: x86
   SUBTARGET: 64
   CONFIG_FILE: project-x64-simple
